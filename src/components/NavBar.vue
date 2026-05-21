@@ -97,7 +97,7 @@ const doneCount = computed(() =>
 }
 
 .logo-icon {
-  font-size: 28px;
+  font-size: 32px;
 }
 
 .logo-text {
@@ -119,7 +119,7 @@ const doneCount = computed(() =>
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .stat-label {
@@ -142,8 +142,8 @@ const doneCount = computed(() =>
 }
 
 .stat-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
 }
 
@@ -160,8 +160,8 @@ const doneCount = computed(() =>
 .btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: var(--spacing-sm) var(--spacing-md);
+  gap: 6px;
+  padding: var(--spacing-sm) var(--spacing-lg);
   border: none;
   border-radius: var(--radius-lg);
   font-size: var(--font-size-base);
@@ -170,7 +170,7 @@ const doneCount = computed(() =>
 }
 
 .btn-icon {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
 }
 
 .btn-text {

@@ -109,12 +109,12 @@ const categoryColor = computed(() => {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 4px;
+  width: 5px;
   transition: width var(--transition-fast);
 }
 
 .task-card:hover .card-status-bar {
-  width: 5px;
+  width: 6px;
 }
 
 .status-todo { background: var(--color-primary); }
@@ -123,12 +123,12 @@ const categoryColor = computed(() => {
 
 .task-card.is-starred .card-status-bar {
   background: var(--color-warning);
-  width: 5px;
+  width: 6px;
 }
 
 .task-card.is-urgent .card-status-bar {
   background: var(--color-danger);
-  width: 6px;
+  width: 7px;
 }
 
 .task-card.is-urgent {
@@ -137,7 +137,7 @@ const categoryColor = computed(() => {
 
 .card-content {
   padding: var(--spacing-md);
-  padding-left: calc(var(--spacing-md) + 4px);
+  padding-left: calc(var(--spacing-md) + 5px);
 }
 
 .card-header {
@@ -162,7 +162,7 @@ const categoryColor = computed(() => {
 
 .card-actions {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
@@ -170,9 +170,9 @@ const categoryColor = computed(() => {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
   color: var(--color-text-muted);
-  padding: 2px 6px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
   line-height: 1;
@@ -218,9 +218,9 @@ const categoryColor = computed(() => {
 }
 
 .card-tag {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: #fff;
-  padding: 2px var(--spacing-sm);
+  padding: 4px var(--spacing-md);
   border-radius: var(--radius-full);
   white-space: nowrap;
   font-weight: 500;

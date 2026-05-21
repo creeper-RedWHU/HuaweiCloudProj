@@ -86,12 +86,12 @@ function onRemove(taskId) {
 .kanban-column {
   background: var(--color-background-secondary);
   border-radius: var(--radius-xl);
-  min-width: 300px;
-  max-width: 340px;
+  min-width: 340px;
+  max-width: 400px;
   flex: 1;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 160px);
+  max-height: calc(100vh - 180px);
   transition: all var(--transition-normal);
   border: 1px solid var(--color-border-light);
 }
@@ -122,8 +122,8 @@ function onRemove(taskId) {
 }
 
 .column-dot {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 2px 4px var(--color-shadow-light);
@@ -134,9 +134,9 @@ function onRemove(taskId) {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  padding: 2px 10px;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
-  min-width: 28px;
+  min-width: 32px;
   text-align: center;
 }
 
@@ -147,12 +147,12 @@ function onRemove(taskId) {
 }
 
 .column-body::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .column-body::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .column-body::-webkit-scrollbar-thumb:hover {
@@ -169,7 +169,7 @@ function onRemove(taskId) {
 }
 
 .empty-icon {
-  font-size: 32px;
+  font-size: 40px;
   margin-bottom: var(--spacing-md);
   opacity: 0.5;
 }
