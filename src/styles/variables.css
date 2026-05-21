@@ -1,0 +1,60 @@
+:root {
+  --color-primary: #4a9eff;
+  --color-primary-light: #6db3ff;
+  --color-primary-dark: #3a8eef;
+  --color-secondary: #f5a623;
+  --color-success: #7ed321;
+  --color-warning: #f5a623;
+  --color-danger: #ff4757;
+  --color-info: #4a9eff;
+  
+  --color-background: #f0f2f5;
+  --color-background-secondary: #e8eaed;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f8f9fa;
+  
+  --color-text: #333333;
+  --color-text-secondary: #666666;
+  --color-text-muted: #999999;
+  
+  --color-border: #e0e0e0;
+  --color-border-light: #f0f0f0;
+  
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-shadow-light: rgba(0, 0, 0, 0.05);
+  
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+  
+  --shadow-sm: 0 1px 2px var(--color-shadow-light);
+  --shadow-md: 0 2px 8px var(--color-shadow);
+  --shadow-lg: 0 4px 16px var(--color-shadow);
+  --shadow-xl: 0 8px 24px var(--color-shadow);
+  
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.35s ease;
+  
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  
+  --z-index-dropdown: 100;
+  --z-index-modal: 200;
+  --z-index-toast: 300;
+  --z-index-tooltip: 400;
+}

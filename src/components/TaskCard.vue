@@ -1,25 +1,50 @@
 <template>
-  <div class="task-card" :class="{ 'is-starred': task.starred, 'is-urgent': task.urgent }" draggable="true"
-    @dragstart="onDragStart" @dragend="onDragEnd">
-    <div class="card-header">
-      <span class="card-title">{{ task.title }}</span>
-      <div class="card-actions">
-        <button class="btn-icon" :class="{ active: task.starred }" @click="$emit('toggle', task.id, 'starred')"
-          title="星标">★</button>
-        <button class="btn-icon" :class="{ active: task.urgent }" @click="$emit('toggle', task.id, 'urgent')"
-          title="紧急">!</button>
-        <button class="btn-icon btn-delete" @click="$emit('remove', task.id)" title="删除">×</button>
+  <div 
+    class="task-card" 
+    :class="[{ 'is-starred': task.starred, 'is-urgent': task.urgent, 'is-done': task.columnId === 'done' }]"
+    draggable="true"
+    @dragstart="onDragStart" 
+    @dragend="onDragEnd"
+  >
+    <div class="card-status-bar" :class="`status-${task.columnId}`"></div>
+    <div class="card-content">
+      <div class="card-header">
+        <span class="card-title">{{ task.title }}</span>
+        <div class="card-actions">
+          <button 
+            class="btn-icon btn-star" 
+            :class="{ active: task.starred }" 
+            @click.stop="$emit('toggle', task.id, 'starred')"
+            title="星标"
+          >★</button>
+          <button 
+            class="btn-icon btn-urgent" 
+            :class="{ active: task.urgent }" 
+            @click.stop="$emit('toggle', task.id, 'urgent')"
+            title="紧急"
+          >!</button>
+          <button 
+            class="btn-icon btn-delete" 
+            @click.stop="$emit('remove', task.id)" 
+            title="删除"
+          >×</button>
+        </div>
       </div>
-    </div>
-    <p v-if="task.description" class="card-desc">{{ task.description }}</p>
-    <div class="card-footer">
-      <span v-if="task.category" class="card-tag" :style="{ background: categoryColor }">{{ task.category }}</span>
-      <span class="card-date">{{ formatDate(task.createdAt) }}</span>
+      <p v-if="task.description" class="card-desc">{{ task.description }}</p>
+      <div class="card-footer">
+        <span v-if="task.category" class="card-tag" :style="{ background: categoryColor }">
+          {{ task.category }}
+        </span>
+        <span class="card-date" :title="fullDate">{{ relativeTime }}</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { formatRelativeTime, formatDateTime } from '../utils/timeFormat'
+
 const CATEGORY_COLORS = [
   '#4a9eff', '#f5a623', '#7ed321', '#bd10e0', '#d0021b', '#50e3c2'
 ]
@@ -40,61 +65,99 @@ function onDragEnd(e) {
   e.target.classList.remove('dragging')
 }
 
-function formatDate(ts) {
-  const d = new Date(ts)
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
-}
+const relativeTime = computed(() => formatRelativeTime(props.task.createdAt))
+const fullDate = computed(() => formatDateTime(props.task.createdAt))
 
-const categoryColor = (() => {
+const categoryColor = computed(() => {
   if (!props.task.category) return '#999'
   let hash = 0
-  for (const ch of props.task.category) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0
+  for (const ch of props.task.category) {
+    hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0
+  }
   return CATEGORY_COLORS[Math.abs(hash) % CATEGORY_COLORS.length]
-})()
+})
 </script>
 
 <style scoped>
 .task-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  position: relative;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--spacing-sm);
+  box-shadow: var(--shadow-sm);
   cursor: grab;
-  transition: transform 0.15s, box-shadow 0.15s;
-  border-left: 3px solid #4a9eff;
+  transition: all var(--transition-fast);
 }
 
 .task-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
-.task-card.is-starred {
-  border-left-color: #f5a623;
-}
-
-.task-card.is-urgent {
-  border-left-color: #d0021b;
+.task-card:active {
+  cursor: grabbing;
 }
 
 .task-card.dragging {
-  opacity: 0.4;
+  opacity: 0.5;
+  transform: scale(0.95);
+}
+
+.card-status-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  transition: width var(--transition-fast);
+}
+
+.task-card:hover .card-status-bar {
+  width: 5px;
+}
+
+.status-todo { background: var(--color-primary); }
+.status-doing { background: var(--color-warning); }
+.status-done { background: var(--color-success); }
+
+.task-card.is-starred .card-status-bar {
+  background: var(--color-warning);
+  width: 5px;
+}
+
+.task-card.is-urgent .card-status-bar {
+  background: var(--color-danger);
+  width: 6px;
+}
+
+.task-card.is-urgent {
+  box-shadow: 0 0 0 2px var(--color-danger), var(--shadow-md);
+}
+
+.card-content {
+  padding: var(--spacing-md);
+  padding-left: calc(var(--spacing-md) + 4px);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .card-title {
   font-weight: 600;
-  font-size: 14px;
-  color: #333;
+  font-size: var(--font-size-md);
+  color: var(--color-text);
   word-break: break-word;
   flex: 1;
+  line-height: 1.4;
+}
+
+.task-card.is-done .card-title {
+  opacity: 0.7;
 }
 
 .card-actions {
@@ -107,31 +170,42 @@ const categoryColor = (() => {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 14px;
-  color: #ccc;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: color 0.15s, background 0.15s;
+  font-size: var(--font-size-md);
+  color: var(--color-text-muted);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
   line-height: 1;
 }
 
 .btn-icon:hover {
-  background: #f0f0f0;
+  background: var(--color-background-secondary);
 }
 
-.btn-icon.active {
-  color: #f5a623;
+.btn-star.active {
+  color: var(--color-warning);
+  animation: star-pulse 0.3s ease;
 }
 
-.btn-icon.btn-delete:hover {
-  color: #d0021b;
+.btn-urgent.active {
+  color: var(--color-danger);
+}
+
+.btn-delete:hover {
+  color: var(--color-danger);
+  background: rgba(255, 71, 87, 0.1);
+}
+
+@keyframes star-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
 }
 
 .card-desc {
-  font-size: 12px;
-  color: #666;
-  margin: 6px 0 0;
-  line-height: 1.4;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: var(--spacing-sm) 0 0;
+  line-height: 1.5;
   word-break: break-word;
 }
 
@@ -139,21 +213,22 @@ const categoryColor = (() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 8px;
-  gap: 8px;
+  margin-top: var(--spacing-sm);
+  gap: var(--spacing-sm);
 }
 
 .card-tag {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: #fff;
-  padding: 1px 8px;
-  border-radius: 10px;
+  padding: 2px var(--spacing-sm);
+  border-radius: var(--radius-full);
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .card-date {
-  font-size: 11px;
-  color: #999;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 </style>
