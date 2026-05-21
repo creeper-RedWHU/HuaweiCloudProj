@@ -39,3 +39,12 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.lock.hcl
+
+# CodeArts
+.codeartsdoer/

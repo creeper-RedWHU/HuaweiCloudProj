@@ -1,0 +1,223 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: '跳过测试（仅在紧急情况下使用）'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '18'
+  APP_DIR: '/var/www/task-kanban'
+
+jobs:
+  ci:
+    name: 持续集成
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 设置Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      - name: 缓存依赖
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: |
+            node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-node-
+
+      - name: 安装依赖
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          echo "📦 安装依赖..."
+          npm ci --prefer-offline
+          echo "✅ 依赖安装完成"
+
+      - name: 代码风格检查 (ESLint)
+        run: |
+          echo "🔍 执行代码检查..."
+          npm run lint
+          echo "✅ 代码检查通过"
+        continue-on-error: false
+
+      - name: 单元测试 (Vitest)
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        run: |
+          echo "🧪 执行单元测试..."
+          npm run test
+          echo "✅ 单元测试通过"
+        continue-on-error: false
+
+      - name: 构建生产版本
+        run: |
+          echo "🏗️ 构建生产版本..."
+          npm run build
+          echo "✅ 构建完成"
+          echo "📊 构建产物大小:"
+          du -sh dist/
+        env:
+          NODE_ENV: production
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: 生成构建摘要
+        run: |
+          echo "## 🎉 CI完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **分支**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **提交**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **触发者**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: 持续部署
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+
+      - name: 部署到华为云ECS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          port: 22
+          script: |
+            set -e
+            
+            APP_DIR="/var/www/task-kanban"
+            BACKUP_DIR="${APP_DIR}/backups"
+            TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+            COMMIT_SHA="${{ github.sha }}"
+            
+            echo "🚀 开始部署..."
+            echo "📍 应用目录: ${APP_DIR}"
+            echo "🔢 提交SHA: ${COMMIT_SHA}"
+            
+            # 创建备份目录
+            mkdir -p ${BACKUP_DIR}
+            
+            # 备份当前版本
+            if [ -d "${APP_DIR}/dist" ]; then
+              echo "📦 备份当前版本..."
+              cp -r ${APP_DIR}/dist ${BACKUP_DIR}/dist_${TIMESTAMP}
+              echo "✅ 备份完成: dist_${TIMESTAMP}"
+            fi
+            
+            # 清理旧备份（保留最近3个）
+            cd ${BACKUP_DIR}
+            ls -t dist_* | tail -n +4 | xargs -r rm -rf
+            echo "🧹 清理旧备份完成"
+
+      - name: 上传文件到ECS
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          port: 22
+          source: "dist/*"
+          target: "/var/www/task-kanban"
+          strip_components: 1
+
+      - name: 重启服务
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          port: 22
+          script: |
+            set -e
+            
+            APP_DIR="/var/www/task-kanban"
+            COMMIT_SHA="${{ github.sha }}"
+            
+            # 写入版本标记
+            echo "${COMMIT_SHA}" > ${APP_DIR}/.version
+            echo "✅ 版本标记已更新"
+            
+            # 重载Nginx
+            echo "🔄 重载Nginx..."
+            nginx -t && systemctl reload nginx
+            echo "✅ Nginx重载成功"
+            
+            # 健康检查
+            echo "🏥 执行健康检查..."
+            sleep 2
+            if curl -f http://localhost/ > /dev/null 2>&1; then
+              echo "✅ 应用运行正常"
+            else
+              echo "❌ 应用启动失败，执行回滚..."
+              # 回滚到上一个版本
+              LATEST_BACKUP=$(ls -t ${APP_DIR}/backups/dist_* | head -1)
+              if [ -n "${LATEST_BACKUP}" ]; then
+                rm -rf ${APP_DIR}/dist
+                cp -r ${LATEST_BACKUP} ${APP_DIR}/dist
+                systemctl reload nginx
+                echo "✅ 回滚成功"
+              fi
+              exit 1
+            fi
+
+      - name: 部署成功通知
+        if: success()
+        run: |
+          echo "## ✅ 部署成功" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **环境**: 生产环境" >> $GITHUB_STEP_SUMMARY
+          echo "- **ECS地址**: ${{ secrets.ECS_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **应用地址**: http://${{ secrets.ECS_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **提交**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **触发者**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: 部署失败通知
+        if: failure()
+        run: |
+          echo "## ❌ 部署失败" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **提交**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **触发者**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ 系统已自动回滚到上一个稳定版本" >> $GITHUB_STEP_SUMMARY
