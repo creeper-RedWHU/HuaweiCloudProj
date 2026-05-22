@@ -21,11 +21,12 @@
         @toggle="onToggle" 
         @remove="onRemove" 
       />
-      <div v-if="taskList.length === 0" class="column-empty">
-        <div class="empty-icon">📥</div>
-        <div class="empty-text">拖拽任务到此处</div>
-        <div class="empty-hint">{{ emptyHint }}</div>
-      </div>
+      <EmptyState 
+        v-if="taskList.length === 0"
+        :icon="emptyIcon"
+        :title="'暂无任务'"
+        :hint="emptyHint"
+      />
     </div>
   </div>
 </template>
@@ -33,6 +34,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import TaskCard from './TaskCard.vue'
+import EmptyState from './EmptyState.vue'
 
 const props = defineProps({
   column: { type: Object, required: true },
@@ -47,11 +49,20 @@ const headerGradient = computed(() => {
   return `linear-gradient(135deg, ${props.column.color}15 0%, ${props.column.color}05 100%)`
 })
 
+const emptyIcon = computed(() => {
+  const icons = {
+    todo: '📝',
+    doing: '⚡',
+    done: '✅'
+  }
+  return icons[props.column.id] || '📥'
+})
+
 const emptyHint = computed(() => {
   const hints = {
-    todo: '添加新的待办任务',
-    doing: '开始处理任务',
-    done: '完成的任务会显示在这里'
+    todo: '点击上方按钮添加新任务',
+    doing: '将待办任务拖到这里',
+    done: '完成的任务将显示在此'
   }
   return hints[props.column.id] || ''
 })
@@ -84,6 +95,7 @@ function onRemove(taskId) {
 
 <style scoped>
 .kanban-column {
+  position: relative;
   background: var(--color-background-secondary);
   border-radius: var(--radius-xl);
   min-width: 340px;
@@ -99,7 +111,30 @@ function onRemove(taskId) {
 .kanban-column.drag-over {
   background: var(--color-surface-hover);
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary-light);
+  box-shadow: 
+    0 0 0 2px var(--color-primary-light),
+    inset 0 0 30px rgba(74, 158, 255, 0.05);
+  transform: scale(1.02);
+}
+
+.kanban-column.drag-over::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, 
+    transparent 0%, 
+    rgba(74, 158, 255, 0.1) 50%, 
+    transparent 100%
+  );
+  animation: shimmer 1.5s infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .column-header {

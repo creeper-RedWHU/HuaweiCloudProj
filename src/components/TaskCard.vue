@@ -101,7 +101,8 @@ const categoryColor = computed(() => {
 
 .task-card.dragging {
   opacity: 0.5;
-  transform: scale(0.95);
+  transform: scale(0.95) rotate(2deg);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 
 .card-status-bar {
