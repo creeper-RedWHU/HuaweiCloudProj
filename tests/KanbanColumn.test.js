@@ -31,7 +31,8 @@ describe('KanbanColumn 组件', () => {
       props: { column: mockColumn, taskList: [] },
       global: { components: { TaskCard } }
     })
-    expect(wrapper.text()).toContain('拖拽任务到此处')
+    expect(wrapper.text()).toContain('暂无任务')
+    expect(wrapper.text()).toContain('点击上方按钮添加新任务')
   })
 
   it('drop 事件触发 move 事件', async () => {
