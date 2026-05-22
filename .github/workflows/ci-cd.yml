@@ -116,64 +116,82 @@ jobs:
           name: dist-${{ github.sha }}
           path: dist/
 
-      - name: 配置SSH密钥
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.ECS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-
       - name: 部署到华为云ECS
-        run: |
-          set -e
-          
-          APP_DIR="/var/www/task-kanban"
-          BACKUP_DIR="${APP_DIR}/backups"
-          TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
-          COMMIT_SHA="${{ github.sha }}"
-          SSH_OPTS="-o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
-          
-          echo "🚀 开始部署..."
-          echo "📍 应用目录: ${APP_DIR}"
-          echo "🔢 提交SHA: ${COMMIT_SHA}"
-          
-          # 创建备份
-          ssh $SSH_OPTS ${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }} "\
-            mkdir -p ${BACKUP_DIR} && \
-            if [ -d '${APP_DIR}/dist' ]; then \
-              cp -r ${APP_DIR}/dist ${BACKUP_DIR}/dist_${TIMESTAMP} && \
-              cd ${BACKUP_DIR} && ls -t dist_* | tail -n +4 | xargs -r rm -rf; \
-            fi"
-          echo "✅ 备份完成"
-          
-          # 用rsync同步dist目录（增量传输，原子替换）
-          echo "📦 同步文件..."
-          rsync -avz --delete \
-            -e "ssh $SSH_OPTS" \
-            dist/ \
-            ${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }}:${APP_DIR}/dist/
-          echo "✅ 文件同步完成"
-          
-          # 重载Nginx并健康检查
-          echo "🔄 重载Nginx..."
-          ssh $SSH_OPTS ${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }} "\
-            echo '${COMMIT_SHA}' > ${APP_DIR}/.version && \
-            nginx -t && systemctl reload nginx && \
-            sleep 2 && \
-            if curl -f http://localhost/ > /dev/null 2>&1; then \
-              echo '✅ 应用运行正常'; \
-            else \
-              echo '❌ 启动失败，回滚...'; \
-              LATEST_BACKUP=\$(ls -t ${APP_DIR}/backups/dist_* | head -1); \
-              if [ -n '\${LATEST_BACKUP}' ]; then \
-                rm -rf ${APP_DIR}/dist && \
-                cp -r \${LATEST_BACKUP} ${APP_DIR}/dist && \
-                systemctl reload nginx && \
-                echo '✅ 回滚成功'; \
-              fi; \
-              exit 1; \
-            fi"
-          echo "🎉 部署成功"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          port: 22
+          script_stop: true
+          command_timeout: 120s
+          script: |
+            set -e
+            
+            APP_DIR="/var/www/task-kanban"
+            BACKUP_DIR="${APP_DIR}/backups"
+            TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+            COMMIT_SHA="${{ github.sha }}"
+            
+            echo "=== 开始部署 ==="
+            echo "提交SHA: ${COMMIT_SHA}"
+            
+            mkdir -p ${BACKUP_DIR}
+            
+            if [ -d "${APP_DIR}/dist" ]; then
+              echo "备份当前版本..."
+              cp -r ${APP_DIR}/dist ${BACKUP_DIR}/dist_${TIMESTAMP}
+              cd ${BACKUP_DIR} && ls -t dist_* 2>/dev/null | tail -n +4 | xargs -r rm -rf
+              echo "清理旧dist目录..."
+              rm -rf ${APP_DIR}/dist/*
+            else
+              mkdir -p ${APP_DIR}/dist
+            fi
+
+      - name: 上传构建产物到ECS
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          port: 22
+          source: "dist/*"
+          target: "/var/www/task-kanban/dist"
+          strip_components: 1
+
+      - name: 重启Nginx并验证
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          port: 22
+          script_stop: true
+          command_timeout: 30s
+          script: |
+            set -e
+            
+            APP_DIR="/var/www/task-kanban"
+            COMMIT_SHA="${{ github.sha }}"
+            
+            echo "${COMMIT_SHA}" > ${APP_DIR}/.version
+            
+            nginx -t && systemctl reload nginx
+            
+            sleep 2
+            if curl -f http://localhost/ > /dev/null 2>&1; then
+              echo "应用运行正常"
+            else
+              echo "应用启动失败，回滚..."
+              LATEST_BACKUP=$(ls -t ${APP_DIR}/backups/dist_* 2>/dev/null | head -1)
+              if [ -n "${LATEST_BACKUP}" ]; then
+                rm -rf ${APP_DIR}/dist
+                cp -r ${LATEST_BACKUP} ${APP_DIR}/dist
+                systemctl reload nginx
+                echo "回滚成功"
+              fi
+              exit 1
+            fi
 
       - name: 部署成功通知
         if: success()
